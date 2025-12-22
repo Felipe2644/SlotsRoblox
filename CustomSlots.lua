@@ -449,15 +449,17 @@ function CustomSlotsSystem:SetupSlotEvents(slot, index, button)
     end)
     
     -- Long press para configurar (mobile)
+    -- Tempo necessário: 1.0 segundo de toque contínuo
     local pressTime = 0
     local pressing = false
+    local longPressTime = 1.0 -- Tempo em segundos para ativar configuração
     
     button.MouseButton1Down:Connect(function()
         pressing = true
         pressTime = tick()
         
-        delay(0.5, function()
-            if pressing and (tick() - pressTime) >= 0.5 then
+        delay(longPressTime, function()
+            if pressing and (tick() - pressTime) >= longPressTime then
                 self:OpenSlotConfigMenu(index)
             end
         end)
@@ -706,14 +708,20 @@ function CustomSlotsSystem:CreateConfigMenu()
     scrollFrame.Size = UDim2.new(1, -20, 1, -50)
     scrollFrame.Position = UDim2.new(0, 10, 0, 45)
     scrollFrame.BackgroundTransparency = 1
-    scrollFrame.ScrollBarThickness = 4
+    scrollFrame.ScrollBarThickness = 6
     scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 900)
+    scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     scrollFrame.Parent = self.ConfigMenu
     
     local contentLayout = Instance.new("UIListLayout")
     contentLayout.Padding = UDim.new(0, 10)
     contentLayout.Parent = scrollFrame
+    
+    -- Padding para o scroll
+    local scrollPadding = Instance.new("UIPadding")
+    scrollPadding.PaddingBottom = UDim.new(0, 20)
+    scrollPadding.Parent = scrollFrame
     
     -- Seções do menu
     self:CreateMenuSection(scrollFrame, "Quantidade de Slots", function(container)
@@ -1382,13 +1390,18 @@ function CustomSlotsSystem:OpenSlotConfigMenu(slotIndex)
     content.Size = UDim2.new(1, -20, 1, -50)
     content.Position = UDim2.new(0, 10, 0, 45)
     content.BackgroundTransparency = 1
-    content.ScrollBarThickness = 4
-    content.CanvasSize = UDim2.new(0, 0, 0, 500)
+    content.ScrollBarThickness = 6
+    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    content.CanvasSize = UDim2.new(0, 0, 0, 0)
     content.Parent = self.SlotConfigMenu
     
     local contentLayout = Instance.new("UIListLayout")
     contentLayout.Padding = UDim.new(0, 8)
     contentLayout.Parent = content
+    
+    local contentPadding = Instance.new("UIPadding")
+    contentPadding.PaddingBottom = UDim.new(0, 20)
+    contentPadding.Parent = content
     
     -- Nome da habilidade
     local nameLabel = self:CreateLabel(content, "Nome da habilidade/item:")
