@@ -1843,19 +1843,82 @@ function CustomSlotsSystem:EnableDragMode(elementName)
     if self.Config.UILocked then return end
     
     local element = self.UIElements[elementName]
-    if not element then return end
+    if not element then 
+        warn("[CustomSlots] Elemento não encontrado: " .. tostring(elementName))
+        return 
+    end
     
-    -- Visual feedback
-    local originalColor = element.BackgroundColor3
-    element.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    -- Criar overlay de arraste para facilitar a interação
+    local dragOverlay = Instance.new("Frame")
+    dragOverlay.Name = "DragOverlay"
+    dragOverlay.Size = UDim2.new(1, 0, 1, 0)
+    dragOverlay.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    dragOverlay.BackgroundTransparency = 0.7
+    dragOverlay.ZIndex = 100
+    dragOverlay.Parent = self.ScreenGui
+    
+    -- Indicador visual no elemento
+    local indicator = Instance.new("Frame")
+    indicator.Name = "DragIndicator"
+    indicator.Size = element.Size
+    indicator.Position = element.Position
+    indicator.AnchorPoint = element.AnchorPoint
+    indicator.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+    indicator.BackgroundTransparency = 0.5
+    indicator.ZIndex = 101
+    indicator.Parent = self.ScreenGui
+    
+    local indicatorCorner = Instance.new("UICorner")
+    indicatorCorner.CornerRadius = UDim.new(0, 8)
+    indicatorCorner.Parent = indicator
+    
+    local indicatorStroke = Instance.new("UIStroke")
+    indicatorStroke.Color = Color3.fromRGB(255, 255, 255)
+    indicatorStroke.Thickness = 3
+    indicatorStroke.Parent = indicator
+    
+    -- Label de instrução
+    local instructionLabel = Instance.new("TextLabel")
+    instructionLabel.Size = UDim2.new(0, 300, 0, 50)
+    instructionLabel.Position = UDim2.new(0.5, 0, 0, 50)
+    instructionLabel.AnchorPoint = Vector2.new(0.5, 0)
+    instructionLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    instructionLabel.BackgroundTransparency = 0.3
+    instructionLabel.Text = "🔄 Arraste para mover os slots\nToque em qualquer lugar para confirmar"
+    instructionLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    instructionLabel.TextSize = 16
+    instructionLabel.Font = Enum.Font.GothamBold
+    instructionLabel.ZIndex = 102
+    instructionLabel.Parent = self.ScreenGui
+    
+    local instructionCorner = Instance.new("UICorner")
+    instructionCorner.CornerRadius = UDim.new(0, 10)
+    instructionCorner.Parent = instructionLabel
     
     local dragging = false
     local dragStart = nil
-    local startPos = nil
+    local startPos = element.Position
+    local connections = {}
     
-    local connection1, connection2, connection3
+    local function cleanup()
+        for _, conn in pairs(connections) do
+            if conn then conn:Disconnect() end
+        end
+        if dragOverlay then dragOverlay:Destroy() end
+        if indicator then indicator:Destroy() end
+        if instructionLabel then instructionLabel:Destroy() end
+        
+        -- Salvar nova posição
+        if elementName == "SlotsContainer" then
+            self.Config.ContainerPosition = element.Position
+            self.Config.ContainerAnchorPoint = Vector2.new(0, 0) -- Resetar anchor para posição absoluta
+            element.AnchorPoint = Vector2.new(0, 0)
+        end
+        self:SaveConfig()
+    end
     
-    connection1 = element.InputBegan:Connect(function(input)
+    -- Detectar início do arraste
+    connections[1] = dragOverlay.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or 
            input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -1864,35 +1927,38 @@ function CustomSlotsSystem:EnableDragMode(elementName)
         end
     end)
     
-    connection2 = element.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
-           input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-            
-            -- Salvar nova posição
-            if elementName == "SlotsContainer" then
-                self.Config.ContainerPosition = element.Position
-            end
-            self:SaveConfig()
-            
-            -- Restaurar cor e desconectar
-            element.BackgroundColor3 = originalColor
-            connection1:Disconnect()
-            connection2:Disconnect()
-            connection3:Disconnect()
-        end
-    end)
-    
-    connection3 = UserInputService.InputChanged:Connect(function(input)
+    -- Detectar movimento
+    connections[2] = UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or 
                          input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
-            element.Position = UDim2.new(
-                startPos.X.Scale,
+            local newPos = UDim2.new(
+                0,
                 startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
+                0,
                 startPos.Y.Offset + delta.Y
             )
+            element.Position = newPos
+            indicator.Position = newPos
+        end
+    end)
+    
+    -- Detectar fim do arraste
+    connections[3] = UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            if dragging then
+                dragging = false
+                cleanup()
+            end
+        end
+    end)
+    
+    -- Botão de confirmar/cancelar
+    connections[4] = dragOverlay.InputEnded:Connect(function(input)
+        if not dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch) then
+            cleanup()
         end
     end)
 end
